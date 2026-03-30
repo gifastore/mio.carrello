@@ -17,7 +17,11 @@
         <h1 class="text-2xl font-bold text-center mb-4 text-blue-600">Spesa Smart 🛒</h1>
         
         <div id="reader" class="rounded-lg overflow-hidden border-2 border-blue-200"></div>
-        
+        <div class="mt-4 flex gap-2">
+    <input type="text" id="manual-barcode" placeholder="Inserisci codice a barre" 
+           class="flex-1 border-2 border-gray-300 p-2 rounded-lg focus:border-blue-500 outline-none">
+    <button onclick="addManual()" class="bg-blue-500 text-white px-4 py-2 rounded-lg font-bold">Aggiungi</button>
+</div>
         <div class="mt-6">
             <h2 class="text-lg font-semibold mb-2">Carrello Corrente</h2>
             <div id="cart-list" class="space-y-2 max-h-40 overflow-y-auto mb-4">
@@ -70,7 +74,26 @@
         // Inizializza Scanner
         function onScanSuccess(decodedText) {
             const product = db[decodedText]; // Cerca nel database
+function addManual() {
+    const input = document.getElementById('manual-barcode');
+    const barcode = input.value.trim(); // Prende il testo scritto nell'input
 
+    if (barcode === "") {
+        alert("Inserisci un codice prima!");
+        return;
+    }
+
+    // Usiamo la stessa logica dello scanner
+    const product = db[barcode];
+
+    if (product) {
+        cart.push(product);
+        updateUI();
+        input.value = ""; // Pulisce il campo dopo l'aggiunta
+    } else {
+        alert("Prodotto non trovato nel database: " + barcode);
+    }
+}
             if (product) {
                 cart.push(product); // Se esiste lo aggiunge
                 updateUI();
