@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner & Scontrino</title>
+    <title>Spesa Smart PRO</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,133 +11,125 @@
         .dashed-line { border-top: 1px dashed #000; margin: 8px 0; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4">
+<body class="bg-gray-100 min-h-screen p-4 font-sans">
 
     <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        <h1 class="text-2xl font-bold text-center mb-4 text-blue-600">Spesa Smart 🛒</h1>
+        <h1 class="text-2xl font-bold text-center mb-4 text-blue-600">Mia Spesa 🛒</h1>
         
-        <div id="reader" class="rounded-lg overflow-hidden border-2 border-blue-200"></div>
-        <div class="mt-4 flex gap-2">
-    <input type="text" id="manual-barcode" placeholder="Inserisci codice a barre" 
-           class="flex-1 border-2 border-gray-300 p-2 rounded-lg focus:border-blue-500 outline-none">
-    <button onclick="addManual()" class="bg-blue-500 text-white px-4 py-2 rounded-lg font-bold">Aggiungi</button>
-</div>
-        <div class="mt-6">
-            <h2 class="text-lg font-semibold mb-2">Carrello Corrente</h2>
-            <div id="cart-list" class="space-y-2 max-h-40 overflow-y-auto mb-4">
+        <div id="reader" class="rounded-lg overflow-hidden border-2 border-blue-200 mb-4"></div>
+        
+        <div class="flex gap-2 mb-6">
+            <input type="text" id="manual-barcode" placeholder="Inserisci codice..." 
+                   class="flex-1 border-2 border-gray-200 p-2 rounded-lg focus:border-blue-500 outline-none shadow-sm">
+            <button onclick="addManual()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition">Aggiungi</button>
+        </div>
+
+        <div class="border-t pt-4">
+            <h2 class="text-lg font-semibold mb-2 text-gray-700">Prodotti scansionati</h2>
+            <div id="cart-list" class="space-y-2 max-h-48 overflow-y-auto mb-4">
                 </div>
             
-            <div class="flex justify-between items-center border-t pt-4">
-                <span class="text-xl font-bold">Totale:</span>
+            <div class="flex justify-between items-center border-t border-dashed pt-4">
+                <span class="text-xl font-bold text-gray-800">Totale:</span>
                 <span id="total-amount" class="text-2xl font-black text-green-600">€ 0.00</span>
             </div>
         </div>
 
         <div class="mt-6 grid grid-cols-2 gap-4">
-            <button onclick="clearCart()" class="bg-red-100 text-red-600 py-2 rounded-lg font-bold">Svuota</button>
-            <button onclick="showReceipt()" class="bg-blue-600 text-white py-2 rounded-lg font-bold shadow-lg">Genera Scontrino</button>
+            <button onclick="clearCart()" class="bg-gray-100 text-gray-500 py-2 rounded-lg font-semibold">Svuota</button>
+            <button onclick="showReceipt()" class="bg-green-600 text-white py-2 rounded-lg font-bold shadow-lg hover:bg-green-700">Scontrino</button>
         </div>
     </div>
 
-    <div id="receipt-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+    <div id="receipt-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-sm shadow-2xl w-full max-w-xs receipt-font text-black">
             <div class="text-center mb-4">
-                <p class="font-bold text-lg uppercase">Supermercato AI</p>
-                <p class="text-xs">Via del Codice 1, Digital City</p>
-                <p id="receipt-date" class="text-xs"></p>
+                <p class="font-bold text-lg uppercase underline">Scontrino Digitale</p>
+                <p id="receipt-date" class="text-[10px] text-gray-600"></p>
             </div>
-            <div class="dashed-line"></div>
-            <div id="receipt-items">
-                </div>
+            <div id="receipt-items" class="text-sm"></div>
             <div class="dashed-line"></div>
             <div class="flex justify-between font-bold text-lg">
                 <span>TOTALE</span>
                 <span id="receipt-total">€ 0.00</span>
             </div>
-            <div class="text-center mt-6 text-xs italic">
-                Grazie per la visita!<br>Scontrino Digitale No-Paper
-            </div>
-            <button onclick="closeReceipt()" class="mt-6 w-full bg-gray-800 text-white py-2 rounded no-print">Chiudi</button>
+            <button onclick="closeReceipt()" class="mt-8 w-full bg-black text-white py-2 rounded uppercase text-sm font-bold">Chiudi</button>
         </div>
     </div>
 
     <script>
-        // Database prodotti fittizio
+        // --- DATABASE PRODOTTI ---
         const db = {
-            "800123456": { name: "Pasta Barilla", price: 1.20 },
-            "800987654": { name: "Salsa Mutti", price: 0.85 },
-            "123456789": { name: "Acqua 1.5L", price: 0.40 }
+            "800123456": { name: "Pasta 500g", price: 1.15 },
+            "800987654": { name: "Salsa Pomodoro", price: 0.90 },
+            "123": { name: "Codice Prova", price: 5.00 }
         };
 
         let cart = [];
 
-        // Inizializza Scanner
+        // --- FUNZIONE SCANNER ---
         function onScanSuccess(decodedText) {
-            const product = db[decodedText]; // Cerca nel database
-function addManual() {
-    const input = document.getElementById('manual-barcode');
-    const barcode = input.value.trim(); // Prende il testo scritto nell'input
-
-    if (barcode === "") {
-        alert("Inserisci un codice prima!");
-        return;
-    }
-
-    // Usiamo la stessa logica dello scanner
-    const product = db[barcode];
-
-    if (product) {
-        cart.push(product);
-        updateUI();
-        input.value = ""; // Pulisce il campo dopo l'aggiunta
-    } else {
-        alert("Prodotto non trovato nel database: " + barcode);
-    }
-}
-            if (product) {
-                cart.push(product); // Se esiste lo aggiunge
-                updateUI();
-            } else {
-                // Se NON esiste, mostra l'errore e NON aggiunge al totale
-                alert("Prodotto non in database! Codice: " + decodedText);
-            }
+            processBarcode(decodedText);
         }
 
         const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
         html5QrcodeScanner.render(onScanSuccess);
 
+        // --- FUNZIONE INSERIMENTO MANUALE ---
+        function addManual() {
+            const input = document.getElementById('manual-barcode');
+            const code = input.value.trim();
+            
+            if(code === "") return alert("Scrivi un codice!");
+            
+            processBarcode(code);
+            input.value = ""; // Svuota il campo dopo l'invio
+        }
+
+        // --- LOGICA DI CONTROLLO ---
+        function processBarcode(code) {
+            const product = db[code];
+            
+            if (product) {
+                cart.push(product);
+                updateUI();
+            } else {
+                alert("ERRORE: Codice " + code + " non trovato nel database.");
+            }
+        }
+
+        // --- AGGIORNAMENTO INTERFACCIA ---
         function updateUI() {
             const list = document.getElementById('cart-list');
             const totalEl = document.getElementById('total-amount');
             list.innerHTML = '';
             let total = 0;
 
-            cart.forEach((item, index) => {
+            cart.forEach(item => {
                 total += item.price;
-                list.innerHTML += `<div class="flex justify-between text-sm bg-gray-50 p-2 rounded">
-                    <span>${item.name}</span>
-                    <span class="font-bold">€ ${item.price.toFixed(2)}</span>
-                </div>`;
+                list.innerHTML += `
+                    <div class="flex justify-between items-center bg-gray-50 p-2 rounded border border-gray-100">
+                        <span class="text-gray-700">${item.name}</span>
+                        <span class="font-bold text-blue-600">€ ${item.price.toFixed(2)}</span>
+                    </div>`;
             });
             totalEl.innerText = `€ ${total.toFixed(2)}`;
         }
 
+        // --- GESTIONE SCONTRINO ---
         function showReceipt() {
-            if(cart.length === 0) return alert("Carrello vuoto!");
-            
+            if(cart.length === 0) return alert("Il carrello è vuoto!");
             const itemsContainer = document.getElementById('receipt-items');
-            const dateEl = document.getElementById('receipt-date');
             let total = 0;
-
             itemsContainer.innerHTML = '';
-            dateEl.innerText = new Date().toLocaleString();
+            document.getElementById('receipt-date').innerText = new Date().toLocaleString();
 
             cart.forEach(item => {
                 total += item.price;
                 itemsContainer.innerHTML += `
-                    <div class="flex justify-between text-sm mb-1">
-                        <span>${item.name.substring(0, 15)}</span>
-                        <span>€ ${item.price.toFixed(2)}</span>
+                    <div class="flex justify-between mb-1">
+                        <span>${item.name.padEnd(15, '.')}</span>
+                        <span>€${item.price.toFixed(2)}</span>
                     </div>`;
             });
 
@@ -145,14 +137,8 @@ function addManual() {
             document.getElementById('receipt-modal').classList.remove('hidden');
         }
 
-        function closeReceipt() {
-            document.getElementById('receipt-modal').classList.add('hidden');
-        }
-
-        function clearCart() {
-            cart = [];
-            updateUI();
-        }
+        function closeReceipt() { document.getElementById('receipt-modal').classList.add('hidden'); }
+        function clearCart() { cart = []; updateUI(); }
     </script>
 </body>
 </html>
