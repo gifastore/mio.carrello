@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scanner & Scontrino</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .receipt-font { font-family: 'Courier New', Courier, monospace; }
+        .dashed-line { border-top: 1px dashed #000; margin: 8px 0; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+        <h1 class="text-2xl font-bold text-center mb-4 text-blue-600">Spesa Smart 🛒</h1>
+        
+        <div id="reader" class="rounded-lg overflow-hidden border-2 border-blue-200"></div>
+        
+        <div class="mt-6">
+            <h2 class="text-lg font-semibold mb-2">Carrello Corrente</h2>
+            <div id="cart-list" class="space-y-2 max-h-40 overflow-y-auto mb-4">
+                </div>
+            
+            <div class="flex justify-between items-center border-t pt-4">
+                <span class="text-xl font-bold">Totale:</span>
+                <span id="total-amount" class="text-2xl font-black text-green-600">€ 0.00</span>
+            </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-4">
+            <button onclick="clearCart()" class="bg-red-100 text-red-600 py-2 rounded-lg font-bold">Svuota</button>
+            <button onclick="showReceipt()" class="bg-blue-600 text-white py-2 rounded-lg font-bold shadow-lg">Genera Scontrino</button>
+        </div>
+    </div>
+
+    <div id="receipt-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-sm shadow-2xl w-full max-w-xs receipt-font text-black">
+            <div class="text-center mb-4">
+                <p class="font-bold text-lg uppercase">Supermercato AI</p>
+                <p class="text-xs">Via del Codice 1, Digital City</p>
+                <p id="receipt-date" class="text-xs"></p>
+            </div>
+            <div class="dashed-line"></div>
+            <div id="receipt-items">
+                </div>
+            <div class="dashed-line"></div>
+            <div class="flex justify-between font-bold text-lg">
+                <span>TOTALE</span>
+                <span id="receipt-total">€ 0.00</span>
+            </div>
+            <div class="text-center mt-6 text-xs italic">
+                Grazie per la visita!<br>Scontrino Digitale No-Paper
+            </div>
+            <button onclick="closeReceipt()" class="mt-6 w-full bg-gray-800 text-white py-2 rounded no-print">Chiudi</button>
+        </div>
+    </div>
+
+    <script>
+        // Database prodotti fittizio
+        const db = {
+            "800123456": { name: "Pasta Barilla", price: 1.20 },
+            "800987654": { name: "Salsa Mutti", price: 0.85 },
+            "123456789": { name: "Acqua 1.5L", price: 0.40 }
+        };
+
+        let cart = [];
+
+        // Inizializza Scanner
+        function onScanSuccess(decodedText) {
+            const product = db[decodedText] || { name: "Prodotto Ignoto", price: Math.random() * 5 };
+            cart.push(product);
+            updateUI();
+        }
+
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+
+        function updateUI() {
+            const list = document.getElementById('cart-list');
+            const totalEl = document.getElementById('total-amount');
+            list.innerHTML = '';
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                total += item.price;
+                list.innerHTML += `<div class="flex justify-between text-sm bg-gray-50 p-2 rounded">
+                    <span>${item.name}</span>
+                    <span class="font-bold">€ ${item.price.toFixed(2)}</span>
+                </div>`;
+            });
+            totalEl.innerText = `€ ${total.toFixed(2)}`;
+        }
+
+        function showReceipt() {
+            if(cart.length === 0) return alert("Carrello vuoto!");
+            
+            const itemsContainer = document.getElementById('receipt-items');
+            const dateEl = document.getElementById('receipt-date');
+            let total = 0;
+
+            itemsContainer.innerHTML = '';
+            dateEl.innerText = new Date().toLocaleString();
+
+            cart.forEach(item => {
+                total += item.price;
+                itemsContainer.innerHTML += `
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>${item.name.substring(0, 15)}</span>
+                        <span>€ ${item.price.toFixed(2)}</span>
+                    </div>`;
+            });
+
+            document.getElementById('receipt-total').innerText = `€ ${total.toFixed(2)}`;
+            document.getElementById('receipt-modal').classList.remove('hidden');
+        }
+
+        function closeReceipt() {
+            document.getElementById('receipt-modal').classList.add('hidden');
+        }
+
+        function clearCart() {
+            cart = [];
+            updateUI();
+        }
+    </script>
+</body>
+</html>
