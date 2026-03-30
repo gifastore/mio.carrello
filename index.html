@@ -69,9 +69,15 @@
 
         // Inizializza Scanner
         function onScanSuccess(decodedText) {
-            const product = db[decodedText] || { name: "Prodotto Ignoto", price: Math.random() * 5 };
-            cart.push(product);
-            updateUI();
+            const product = db[decodedText]; // Cerca nel database
+
+            if (product) {
+                cart.push(product); // Se esiste lo aggiunge
+                updateUI();
+            } else {
+                // Se NON esiste, mostra l'errore e NON aggiunge al totale
+                alert("Prodotto non in database! Codice: " + decodedText);
+            }
         }
 
         const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
