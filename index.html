@@ -3,239 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Spesa Smart - Quantità e Prezzi</title>
+    <title>Spesa Smart PRO + PDF</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         .receipt-font { font-family: 'Courier New', Courier, monospace; }
         .dashed-line { border-top: 1px dashed #000; margin: 8px 0; }
-        body { touch-action: manipulation; }
+        @media print { .no-print { display: none; } }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 font-sans">
+<body class="bg-gray-100 min-h-screen p-4 font-sans text-gray-900">
 
     <div class="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden p-6 border border-gray-200">
-        <h1 class="text-2xl font-bold text-center mb-4 text-blue-600 flex justify-center items-center gap-2">
-            <span>🛒</span> Spesa Smart PRO
-        </h1>
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-xl font-bold text-blue-600">🛒 Spesa Smart</h1>
+            <button onclick="setStoreName()" class="text-gray-400 hover:text-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
+        </div>
         
         <div id="reader" class="rounded-lg overflow-hidden border-2 border-blue-100 mb-4 bg-gray-50"></div>
         
         <div class="flex gap-2 mb-6">
             <input type="text" id="manual-barcode" placeholder="Codice a barre..." 
-                   class="flex-1 border-2 border-gray-200 p-3 rounded-lg focus:border-blue-500 outline-none shadow-sm text-sm">
-            <button onclick="addManual()" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-700 active:scale-95 transition">
-                Aggiungi
-            </button>
+                   class="flex-1 border-2 border-gray-200 p-3 rounded-lg focus:border-blue-500 outline-none text-sm">
+            <button onclick="addManual()" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold">Aggiungi</button>
         </div>
 
         <div class="border-t pt-4">
             <div class="flex justify-between items-center mb-3">
-                <h2 class="text-lg font-semibold text-gray-700">Il tuo Carrello</h2>
+                <h2 class="text-lg font-semibold text-gray-700">Carrello</h2>
                 <span id="items-count" class="bg-blue-100 text-blue-600 text-xs font-bold px-2 py-1 rounded-full">0 prodotti</span>
             </div>
-            
-            <div id="cart-list" class="space-y-2 max-h-56 overflow-y-auto mb-4 p-1">
-                <p id="empty-msg" class="text-gray-400 text-center py-4 italic text-sm">Il carrello è vuoto</p>
+            <div id="cart-list" class="space-y-2 max-h-60 overflow-y-auto mb-4 p-1">
+                <p id="empty-msg" class="text-gray-400 text-center py-4 italic text-sm">Carrello vuoto</p>
             </div>
-            
             <div class="flex justify-between items-center border-t border-dashed pt-4">
-                <span class="text-xl font-bold text-gray-800">Totale:</span>
+                <span class="text-xl font-bold">Totale:</span>
                 <span id="total-amount" class="text-2xl font-black text-green-600">€ 0.00</span>
             </div>
         </div>
 
         <div class="mt-6 grid grid-cols-2 gap-4">
-            <button onclick="clearCart()" class="bg-gray-100 text-gray-500 py-3 rounded-lg font-semibold hover:bg-gray-200 active:scale-95 transition text-sm">
-                Svuota
-            </button>
-            <button onclick="showReceipt()" class="bg-green-600 text-white py-3 rounded-lg font-bold shadow-md hover:bg-green-700 active:scale-95 transition text-sm uppercase">
-                Vedi Scontrino
-            </button>
+            <button onclick="clearCart()" class="bg-gray-100 text-gray-500 py-3 rounded-lg font-semibold">Svuota</button>
+            <button onclick="showReceipt()" class="bg-green-600 text-white py-3 rounded-lg font-bold shadow-md">Scontrino</button>
         </div>
     </div>
 
-    <div id="receipt-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-sm shadow-2xl w-full max-w-xs receipt-font text-black animate-in fade-in zoom-in duration-300">
+    <div id="receipt-modal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex flex-col items-center justify-center p-4 z-50">
+        <div id="receipt-to-print" class="bg-white p-8 shadow-2xl w-full max-w-xs receipt-font text-black mb-4">
             <div class="text-center mb-4">
-                <p class="font-bold text-lg uppercase tracking-widest">SCONTRINO SMART</p>
+                <p id="display-store-name" class="font-bold text-lg uppercase tracking-widest">MIO NEGOZIO</p>
                 <p id="receipt-date" class="text-[10px] text-gray-500 mt-1"></p>
             </div>
             <div class="dashed-line"></div>
-            <div id="receipt-items" class="text-xs space-y-1">
-                </div>
+            <div id="receipt-items" class="text-xs space-y-2"></div>
             <div class="dashed-line"></div>
             <div class="flex justify-between font-bold text-lg pt-2">
                 <span>TOTALE</span>
                 <span id="receipt-total">€ 0.00</span>
             </div>
-            <div class="text-center mt-6 text-[10px] italic text-gray-500">
-                Grazie per aver usato l'App!<br>Database salvato localmente.
+            <div class="text-center mt-8 text-[9px] text-gray-400 italic">
+                Documento emesso da App Spesa Smart
             </div>
-            <button onclick="closeReceipt()" class="mt-6 w-full bg-black text-white py-3 rounded uppercase text-xs font-bold tracking-wider">
+        </div>
+
+        <div class="flex gap-4 w-full max-w-xs">
+            <button onclick="downloadPDF()" class="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold shadow-lg flex items-center justify-center gap-2">
+                📥 Scarica PDF
+            </button>
+            <button onclick="closeReceipt()" class="flex-1 bg-white text-black py-3 rounded-lg font-bold shadow-lg">
                 Chiudi
             </button>
         </div>
     </div>
 
     <script>
-        // --- DATABASE E MEMORIA ---
-        const initialDb = {
-            "800123456": { name: "Pasta Barilla 500g", price: 1.15 },
-            "800987654": { name: "Passata Mutti", price: 0.89 },
-            "123": { name: "Prodotto Test", price: 5.00 }
-        };
-
-        // Carica il database dalla memoria dello smartphone
+        const initialDb = { "123": { name: "Prodotto Test", price: 5.00 } };
         let db = JSON.parse(localStorage.getItem('smart_shopping_db')) || initialDb;
+        let storeName = localStorage.getItem('smart_store_name') || "IL MIO NEGOZIO";
         let cart = [];
 
-        // --- INIZIALIZZA SCANNER ---
-        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-            fps: 15, 
-            qrbox: { width: 250, height: 150 },
-            aspectRatio: 1.0
-        });
-        html5QrcodeScanner.render(onScanSuccess);
-
-        function onScanSuccess(decodedText) {
-            processBarcode(decodedText);
+        // Imposta nome negozio
+        function setStoreName() {
+            const nuovoNome = prompt("Inserisci il nome del punto vendita:", storeName);
+            if(nuovoNome) {
+                storeName = nuovoNome.toUpperCase();
+                localStorage.setItem('smart_store_name', storeName);
+                document.getElementById('display-store-name').innerText = storeName;
+            }
         }
 
-        // --- LOGICA AGGIUNTA MANUALE ---
+        // Inizializza Scanner
+        const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 150 } });
+        html5QrcodeScanner.render((decodedText) => processBarcode(decodedText));
+
         function addManual() {
             const input = document.getElementById('manual-barcode');
-            const code = input.value.trim();
-            if(!code) return alert("Inserisci un codice!");
-            processBarcode(code);
+            if(!input.value) return;
+            processBarcode(input.value.trim());
             input.value = "";
         }
 
-        // --- CORE: ELABORAZIONE CODICE ---
         function processBarcode(code) {
             let product = db[code];
             let name, price;
-            
+
             if (product) {
                 name = product.name;
-                // Chiedi se il prezzo è cambiato (mostra quello attuale)
-                const pricePrompt = prompt(`Prodotto: ${name}\nPrezzo attuale: € ${product.price.toFixed(2)}\nSe è cambiato, inserisci il nuovo prezzo (oppure premi OK per confermare questo):`, product.price.toFixed(2));
-                
-                if (pricePrompt === null) return; // Annullato dall'utente
-                price = parseFloat(pricePrompt.replace(',', '.'));
-                
-                if (isNaN(price)) {
-                    alert("Prezzo non valido!");
-                    return;
-                }
-
-                // Se il prezzo inserito è diverso da quello registrato, aggiorna il database "eterno"
-                if (price !== product.price) {
-                    db[code] = { name: name, price: price };
-                    localStorage.setItem('smart_shopping_db', JSON.stringify(db));
-                }
+                const pInput = prompt(`Prodotto: ${name}\nPrezzo:`, product.price);
+                price = parseFloat(pInput ? pInput.toString().replace(',', '.') : product.price);
             } else {
-                // Prodotto ignoto: chiedi i dati da zero
-                name = prompt("NUOVO PRODOTTO TROVATO!\nInserisci il nome (es: Latte):");
+                name = prompt("Nuovo Prodotto! Nome:");
                 if(!name) return;
-
-                const priceInput = prompt("Inserisci il prezzo (usa il punto, es: 1.50):");
-                if(!priceInput) return;
-                price = parseFloat(priceInput.replace(',', '.'));
-
-                if(isNaN(price)) {
-                    alert("Prezzo non valido. Operazione annullata.");
-                    return;
-                }
-
-                // Salva nel database (Memoria Eterna)
-                db[code] = { name: name, price: price };
-                localStorage.setItem('smart_shopping_db', JSON.stringify(db));
-                alert("Prodotto salvato correttamente nel database!");
+                const pInput = prompt("Prezzo:");
+                price = parseFloat(pInput ? pInput.replace(',', '.') : 0);
             }
 
-            // Chiedi la QUANTITÀ per l'acquisto corrente
-            const qtyInput = prompt(`Quante confezioni di "${name}" stai prendendo?`, "1");
-            if (qtyInput === null) return; // Annullato dall'utente
-            const quantity = parseInt(qtyInput, 10);
+            const qtyInput = prompt(`Quante unità di ${name}?`, "1");
+            const qty = parseInt(qtyInput) || 1;
 
-            if (isNaN(quantity) || quantity <= 0) {
-                alert("Quantità non valida! Operazione annullata.");
-                return;
-            }
+            db[code] = { name: name, price: price };
+            localStorage.setItem('smart_shopping_db', JSON.stringify(db));
 
-            // Aggiungi al carrello inserendo la quantità scelta
-            cart.push({ name: name, price: price, quantity: quantity });
+            for(let i=0; i < qty; i++) { cart.push({ name: name, price: price }); }
             updateUI();
         }
 
-        // --- AGGIORNAMENTO INTERFACCIA ---
         function updateUI() {
             const list = document.getElementById('cart-list');
             const totalEl = document.getElementById('total-amount');
             const countEl = document.getElementById('items-count');
             const emptyMsg = document.getElementById('empty-msg');
-            
             list.innerHTML = '';
             let total = 0;
-            let totalItems = 0;
 
             if(cart.length > 0) {
                 emptyMsg.classList.add('hidden');
-                cart.forEach((item) => {
-                    const itemTotal = item.price * item.quantity;
-                    total += itemTotal;
-                    totalItems += item.quantity;
-                    list.innerHTML += `
-                        <div class="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100 shadow-sm animate-in slide-in-from-right-5 duration-200">
-                            <div class="flex flex-col">
-                                <span class="text-gray-700 font-medium text-sm">${item.name}</span>
-                                <span class="text-xs text-gray-500">${item.quantity} pz. x € ${item.price.toFixed(2)}</span>
-                            </div>
-                            <span class="font-bold text-blue-600">€ ${itemTotal.toFixed(2)}</span>
-                        </div>`;
-                });
-            } else {
-                list.appendChild(emptyMsg);
-                emptyMsg.classList.remove('hidden');
-            }
-
+                const grouped = cart.reduce((acc, item) => {
+                    acc[item.name] = acc[item.name] || { price: item.price, qty: 0 };
+                    acc[item.name].qty++;
+                    return acc;
+                }, {});
+                for (const [n, d] of Object.entries(grouped)) {
+                    total += (d.price * d.qty);
+                    list.innerHTML += `<div class="flex justify-between p-2 bg-blue-50 rounded border text-sm">
+                        <span>${n} (x${d.qty})</span><span class="font-bold">€ ${(d.price*d.qty).toFixed(2)}</span>
+                    </div>`;
+                }
+            } else { emptyMsg.classList.remove('hidden'); }
             totalEl.innerText = `€ ${total.toFixed(2)}`;
-            countEl.innerText = `${totalItems} prodotti`;
+            countEl.innerText = `${cart.length} art.`;
         }
 
-        // --- GESTIONE SCONTRINO ---
         function showReceipt() {
-            if(cart.length === 0) return alert("Il carrello è vuoto!");
+            if(cart.length === 0) return alert("Carrello vuoto!");
             const itemsContainer = document.getElementById('receipt-items');
-            const receiptTotal = document.getElementById('receipt-total');
-            let total = 0;
-
-            itemsContainer.innerHTML = '';
+            document.getElementById('display-store-name').innerText = storeName;
             document.getElementById('receipt-date').innerText = new Date().toLocaleString('it-IT');
+            let total = 0;
+            itemsContainer.innerHTML = '';
 
-            cart.forEach(item => {
-                const itemTotal = item.price * item.quantity;
-                total += itemTotal;
-                itemsContainer.innerHTML += `
-                    <div class="flex justify-between text-xs mb-1">
-                        <span class="uppercase">${item.name.substring(0, 15)} (x${item.quantity})</span>
-                        <span>€${itemTotal.toFixed(2)}</span>
-                    </div>`;
-            });
+            const grouped = cart.reduce((acc, item) => {
+                acc[item.name] = acc[item.name] || { price: item.price, qty: 0 };
+                acc[item.name].qty++;
+                return acc;
+            }, {});
 
-            receiptTotal.innerText = `€ ${total.toFixed(2)}`;
+            for (const [n, d] of Object.entries(grouped)) {
+                total += (d.price * d.qty);
+                itemsContainer.innerHTML += `<div class="flex justify-between">
+                    <span>${n.substring(0,15)} x${d.qty}</span><span>€${(d.price*d.qty).toFixed(2)}</span>
+                </div>`;
+            }
+            document.getElementById('receipt-total').innerText = `€ ${total.toFixed(2)}`;
             document.getElementById('receipt-modal').classList.remove('hidden');
         }
 
-        function closeReceipt() { document.getElementById('receipt-modal').classList.add('hidden'); }
-        
-        function clearCart() { 
-            if(confirm("Vuoi svuotare il carrello?")) {
-                cart = []; 
-                updateUI(); 
-            }
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const element = document.getElementById('receipt-to-print');
+            
+            // Crea immagine dello scontrino
+            const canvas = await html2canvas(element, { scale: 3 });
+            const imgData = canvas.toDataURL('image/png');
+            
+            // Crea PDF (formato adatto a scontrino stretto)
+            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [80, 150] });
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`scontrino_${new Date().getTime()}.pdf`);
         }
+
+        function closeReceipt() { document.getElementById('receipt-modal').classList.add('hidden'); }
+        function clearCart() { if(confirm("Svuotare?")) { cart = []; updateUI(); } }
     </script>
 </body>
 </html>
