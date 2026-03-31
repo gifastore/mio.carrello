@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Spesa Smart - Memoria Eterna</title>
+    <title>Spesa Smart - Quantità e Prezzi</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .receipt-font { font-family: 'Courier New', Courier, monospace; }
         .dashed-line { border-top: 1px dashed #000; margin: 8px 0; }
-        /* Ottimizzazione per mobile per evitare scroll accidentali */
         body { touch-action: manipulation; }
     </style>
 </head>
@@ -17,13 +16,13 @@
 
     <div class="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden p-6 border border-gray-200">
         <h1 class="text-2xl font-bold text-center mb-4 text-blue-600 flex justify-center items-center gap-2">
-            <span>🛒</span> Spesa Smart
+            <span>🛒</span> Spesa Smart PRO
         </h1>
         
         <div id="reader" class="rounded-lg overflow-hidden border-2 border-blue-100 mb-4 bg-gray-50"></div>
         
         <div class="flex gap-2 mb-6">
-            <input type="text" id="manual-barcode" placeholder="Inserisci codice a barre..." 
+            <input type="text" id="manual-barcode" placeholder="Codice a barre..." 
                    class="flex-1 border-2 border-gray-200 p-3 rounded-lg focus:border-blue-500 outline-none shadow-sm text-sm">
             <button onclick="addManual()" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-700 active:scale-95 transition">
                 Aggiungi
@@ -63,7 +62,7 @@
                 <p id="receipt-date" class="text-[10px] text-gray-500 mt-1"></p>
             </div>
             <div class="dashed-line"></div>
-            <div id="receipt-items" class="text-sm space-y-1">
+            <div id="receipt-items" class="text-xs space-y-1">
                 </div>
             <div class="dashed-line"></div>
             <div class="flex justify-between font-bold text-lg pt-2">
@@ -87,7 +86,7 @@
             "123": { name: "Prodotto Test", price: 5.00 }
         };
 
-        // Carica il database dalla memoria dello smartphone (se esiste)
+        // Carica il database dalla memoria dello smartphone
         let db = JSON.parse(localStorage.getItem('smart_shopping_db')) || initialDb;
         let cart = [];
 
@@ -115,32 +114,59 @@
         // --- CORE: ELABORAZIONE CODICE ---
         function processBarcode(code) {
             let product = db[code];
+            let name, price;
             
             if (product) {
-                // Prodotto trovato: aggiungi al carrello
-                cart.push(product);
-                updateUI();
+                name = product.name;
+                // Chiedi se il prezzo è cambiato (mostra quello attuale)
+                const pricePrompt = prompt(`Prodotto: ${name}\nPrezzo attuale: € ${product.price.toFixed(2)}\nSe è cambiato, inserisci il nuovo prezzo (oppure premi OK per confermare questo):`, product.price.toFixed(2));
+                
+                if (pricePrompt === null) return; // Annullato dall'utente
+                price = parseFloat(pricePrompt.replace(',', '.'));
+                
+                if (isNaN(price)) {
+                    alert("Prezzo non valido!");
+                    return;
+                }
+
+                // Se il prezzo inserito è diverso da quello registrato, aggiorna il database "eterno"
+                if (price !== product.price) {
+                    db[code] = { name: name, price: price };
+                    localStorage.setItem('smart_shopping_db', JSON.stringify(db));
+                }
             } else {
-                // Prodotto ignoto: chiedi i dati all'utente
-                const name = prompt("NUOVO PRODOTTO TROVATO!\nInserisci il nome (es: Latte):");
+                // Prodotto ignoto: chiedi i dati da zero
+                name = prompt("NUOVO PRODOTTO TROVATO!\nInserisci il nome (es: Latte):");
                 if(!name) return;
 
                 const priceInput = prompt("Inserisci il prezzo (usa il punto, es: 1.50):");
-                const price = parseFloat(priceInput ? priceInput.replace(',', '.') : 0);
+                if(!priceInput) return;
+                price = parseFloat(priceInput.replace(',', '.'));
 
-                if(!isNaN(price)) {
-                    // Salva nel database (Memoria Eterna)
-                    db[code] = { name: name, price: price };
-                    localStorage.setItem('smart_shopping_db', JSON.stringify(db));
-                    
-                    // Aggiungi al carrello attuale
-                    cart.push(db[code]);
-                    updateUI();
-                    alert("Prodotto salvato correttamente!");
-                } else {
+                if(isNaN(price)) {
                     alert("Prezzo non valido. Operazione annullata.");
+                    return;
                 }
+
+                // Salva nel database (Memoria Eterna)
+                db[code] = { name: name, price: price };
+                localStorage.setItem('smart_shopping_db', JSON.stringify(db));
+                alert("Prodotto salvato correttamente nel database!");
             }
+
+            // Chiedi la QUANTITÀ per l'acquisto corrente
+            const qtyInput = prompt(`Quante confezioni di "${name}" stai prendendo?`, "1");
+            if (qtyInput === null) return; // Annullato dall'utente
+            const quantity = parseInt(qtyInput, 10);
+
+            if (isNaN(quantity) || quantity <= 0) {
+                alert("Quantità non valida! Operazione annullata.");
+                return;
+            }
+
+            // Aggiungi al carrello inserendo la quantità scelta
+            cart.push({ name: name, price: price, quantity: quantity });
+            updateUI();
         }
 
         // --- AGGIORNAMENTO INTERFACCIA ---
@@ -152,15 +178,21 @@
             
             list.innerHTML = '';
             let total = 0;
+            let totalItems = 0;
 
             if(cart.length > 0) {
                 emptyMsg.classList.add('hidden');
-                cart.forEach((item, index) => {
-                    total += item.price;
+                cart.forEach((item) => {
+                    const itemTotal = item.price * item.quantity;
+                    total += itemTotal;
+                    totalItems += item.quantity;
                     list.innerHTML += `
                         <div class="flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100 shadow-sm animate-in slide-in-from-right-5 duration-200">
-                            <span class="text-gray-700 font-medium text-sm">${item.name}</span>
-                            <span class="font-bold text-blue-600">€ ${item.price.toFixed(2)}</span>
+                            <div class="flex flex-col">
+                                <span class="text-gray-700 font-medium text-sm">${item.name}</span>
+                                <span class="text-xs text-gray-500">${item.quantity} pz. x € ${item.price.toFixed(2)}</span>
+                            </div>
+                            <span class="font-bold text-blue-600">€ ${itemTotal.toFixed(2)}</span>
                         </div>`;
                 });
             } else {
@@ -169,7 +201,7 @@
             }
 
             totalEl.innerText = `€ ${total.toFixed(2)}`;
-            countEl.innerText = `${cart.length} prodotti`;
+            countEl.innerText = `${totalItems} prodotti`;
         }
 
         // --- GESTIONE SCONTRINO ---
@@ -183,11 +215,12 @@
             document.getElementById('receipt-date').innerText = new Date().toLocaleString('it-IT');
 
             cart.forEach(item => {
-                total += item.price;
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
                 itemsContainer.innerHTML += `
                     <div class="flex justify-between text-xs mb-1">
-                        <span class="uppercase">${item.name.substring(0, 18)}</span>
-                        <span>€${item.price.toFixed(2)}</span>
+                        <span class="uppercase">${item.name.substring(0, 15)} (x${item.quantity})</span>
+                        <span>€${itemTotal.toFixed(2)}</span>
                     </div>`;
             });
 
