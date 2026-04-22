@@ -12,7 +12,6 @@ URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    # Leggiamo il foglio Inventario (gid=0)
     df_inventario = conn.read(spreadsheet=URL_FOGLIO, worksheet="0")
     df_inventario['Barcode'] = df_inventario['Barcode'].astype(str)
 except Exception as e:
@@ -34,7 +33,7 @@ if 'carrello' not in st.session_state:
 st.subheader("🔍 Aggiungi Prodotto")
 barcode_inserito = st.text_input("Inserisci Codice a Barre")
 
-# Cerca se il prodotto esiste già nell'inventario
+# Ricerca automatica nell'inventario
 prodotto_trovato = df_inventario[df_inventario['Barcode'] == str(barcode_inserito)]
 
 with st.form("form_spesa", clear_on_submit=True):
@@ -45,34 +44,37 @@ with st.form("form_spesa", clear_on_submit=True):
     else:
         n_def = ""
         p_def = 0.0
-        if barcode_inserito:
-            st.info("Codice nuovo: inserisci nome e prezzo manualmente")
 
     nome = st.text_input("Nome Prodotto", value=n_def)
     prezzo = st.number_input("Prezzo (€)", value=p_def, format="%.2f")
     qty = st.number_input("Quantità", min_value=1, value=1)
     
-    if st.form_submit_button("AGGIUNGI AL CARRELLO"):
-        if nome:
+    submit = st.form_submit_button("AGGIUNGI AL CARRELLO")
+    
+    if submit:
+        if nome != "" and prezzo > 0:
             st.session_state.carrello.append({
                 "Nome": nome, 
                 "Prezzo": prezzo, 
                 "Qty": qty, 
-                "Totale": prezzo * qty
+                "Totale": round(prezzo * qty, 2)
             })
-            st.toast(f"{nome} aggiunto!")
+            st.rerun() # Ricarica l'app per aggiornare subito la tabella
         else:
-            st.error("Inserisci il nome del prodotto")
+            st.error("Inserisci un nome e un prezzo valido!")
 
-# --- RIEPILOGO E PDF ---
+# --- RIEPILOGO ---
 if st.session_state.carrello:
     st.divider()
     df_c = pd.DataFrame(st.session_state.carrello)
-    st.table(df_c[['Nome', 'Qty', 'Prezzo', 'Totale']])
+    
+    # Tabella formattata bene
+    st.dataframe(df_c, use_container_width=True, hide_index=True)
     
     totale_spesa = df_c['Totale'].sum()
     st.header(f"Totale: € {totale_spesa:.2f}")
 
+    # Bottone PDF
     if st.button("📄 GENERA SCONTRINO PDF"):
         pdf = FPDF()
         pdf.add_page()
@@ -82,23 +84,18 @@ if st.session_state.carrello:
         pdf.cell(200, 7, f"Data: {data_acquisto}", ln=True, align='C')
         pdf.ln(10)
         
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(100, 10, "Prodotto", 1)
-        pdf.cell(30, 10, "Qty", 1)
-        pdf.cell(40, 10, "Totale", 1, ln=True)
-        
+        # Righe Prodotti nel PDF
         pdf.set_font("Arial", size=12)
         for _, row in df_c.iterrows():
-            pdf.cell(100, 10, str(row['Nome']), 1)
-            pdf.cell(30, 10, str(row['Qty']), 1)
-            pdf.cell(40, 10, f"EUR {row['Totale']:.2f}", 1, ln=True)
+            pdf.cell(100, 10, f"{row['Nome']} (x{row['Qty']})", 1)
+            pdf.cell(50, 10, f"EUR {row['Totale']:.2f}", 1, ln=True)
         
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(170, 10, f"TOTALE GENERALE: EUR {totale_spesa:.2f}", ln=True, align='R')
+        pdf.cell(150, 10, f"TOTALE: EUR {totale_spesa:.2f}", ln=True, align='R')
         
         pdf_bytes = pdf.output(dest='S').encode('latin-1')
-        st.download_button("⬇️ SCARICA PDF", data=pdf_bytes, file_name=f"spesa_{data_acquisto}.pdf")
+        st.download_button("⬇️ SCARICA PDF", data=pdf_bytes, file_name="scontrino.pdf")
 
 if st.button("🗑️ Svuota Carrello"):
     st.session_state.carrello = []
