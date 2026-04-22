@@ -34,7 +34,13 @@ barcode_rilevato = ""
 if foto:
     # Trasforma la foto in un formato leggibile
     img = Image.open(foto)
-    risultati = decode(img)
+    
+    # --- POTENZIAMENTO IMMAGINE ---
+    # Convertiamo in scala di grigi per aiutare il lettore
+    img_gray = img.convert('L') 
+    
+    # Proviamo a leggere sia l'originale che quella migliorata
+    risultati = decode(img_gray) or decode(img)
     
     if risultati:
         barcode_rilevato = risultati[0].data.decode('utf-8')
