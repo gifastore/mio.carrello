@@ -9,7 +9,7 @@ st.set_page_config(page_title="Vibe Smart Spesa", page_icon="🛒")
 
 # --- CONFIGURAZIONE DATABASE ---
 # INCOLLA QUI L'URL DEL TUO FOGLIO GOOGLE
-URL_FOGLIO = "INSERISCI_QUI_IL_TUO_URL"
+URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8NOHVq1NPgZEUnKyt0/edit?gid=571256712#gid=571256712"
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
