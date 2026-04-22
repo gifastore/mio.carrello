@@ -9,11 +9,11 @@ st.set_page_config(page_title="Vibe Smart Spesa", page_icon="🛒")
 
 # --- DATABASE ---
 # INCOLLA QUI IL TUO URL DI GOOGLE SHEETS
-URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8NOHVq1NPgZEUnKyt0/edit?gid=571256712#gid=571256712"
+URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8NOHVq1NPgZEUnKyt0/edit"
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    df_inventario = conn.read(spreadsheet=URL_FOGLIO, worksheet="Inventario")
+    df_inventario = conn.read(spreadsheet=URL_FOGLIO, worksheet="571256712")
     df_inventario['Barcode'] = df_inventario['Barcode'].astype(str)
 except Exception as e:
     st.error(f"Connessione fallita: {e}")
