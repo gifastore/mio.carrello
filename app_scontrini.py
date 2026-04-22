@@ -13,7 +13,8 @@ URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    df_inventario = conn.read(spreadsheet=URL_FOGLIO, worksheet="571256712")
+    # Usiamo "0" che è il codice del tuo foglio Inventario
+    df_inventario = conn.read(spreadsheet=URL_FOGLIO, worksheet="0")
     df_inventario['Barcode'] = df_inventario['Barcode'].astype(str)
 except Exception as e:
     st.error(f"Connessione fallita: {e}")
@@ -57,7 +58,8 @@ with st.form("form_spesa", clear_on_submit=True):
             if prodotto_trovato.empty and barcode_finale:
                 nuovo = pd.DataFrame([{"Barcode": barcode_finale, "Nome Prodotto": nome, "Prezzo": prezzo}])
                 df_up = pd.concat([df_inventario, nuovo], ignore_index=True)
-                conn.update(spreadsheet=URL_FOGLIO, worksheet="Inventario", data=df_up)
+                # Anche qui mettiamo "0"
+                conn.update(spreadsheet=URL_FOGLIO, worksheet="0", data=df_up)
                 st.toast("Salvato in database!")
         else:
             st.error("Manca il nome!")
