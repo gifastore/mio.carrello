@@ -2,4 +2,6 @@ streamlit
 pandas
 fpdf
 st-gsheets-connection
-
+opencv-python-headless
+pyzbar
+Pillow
