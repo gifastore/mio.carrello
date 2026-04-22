@@ -3,8 +3,10 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
+from PIL import Image
+from pyzbar.pyzbar import decode
+import numpy as np
 
-# Configurazione Pagina
 st.set_page_config(page_title="Vibe Smart Spesa", page_icon="🛒")
 
 # --- DATABASE ---
@@ -15,32 +17,41 @@ try:
     df_inventario = conn.read(spreadsheet=URL_FOGLIO, worksheet="0")
     df_inventario['Barcode'] = df_inventario['Barcode'].astype(str)
 except Exception as e:
-    st.error(f"Errore caricamento dati: {e}")
+    st.error(f"Errore database: {e}")
     df_inventario = pd.DataFrame(columns=['Barcode', 'Nome Prodotto', 'Prezzo'])
 
 st.title("🛒 Spesa Intelligente")
 
-# --- DATI GENERALI ---
-with st.expander("🏨 Negozio e Data", expanded=True):
-    col_a, col_b = st.columns(2)
-    punto_vendita = col_a.text_input("🏪 Negozio", value="Supermercato")
-    data_acquisto = col_b.date_input("📅 Data", datetime.now())
-
 if 'carrello' not in st.session_state:
     st.session_state.carrello = []
 
-# --- AGGIUNTA ---
-st.subheader("🔍 Aggiungi Prodotto")
-barcode_inserito = st.text_input("Inserisci Codice a Barre")
+# --- SCANSIONE FOTO ---
+st.subheader("📸 Scansiona Codice a Barre")
+foto = st.camera_input("Inquadra bene il codice e scatta")
 
-# Ricerca automatica nell'inventario
-prodotto_trovato = df_inventario[df_inventario['Barcode'] == str(barcode_inserito)]
+barcode_rilevato = ""
+
+if foto:
+    # Trasforma la foto in un formato leggibile
+    img = Image.open(foto)
+    risultati = decode(img)
+    
+    if risultati:
+        barcode_rilevato = risultati[0].data.decode('utf-8')
+        st.success(f"✅ Codice rilevato: {barcode_rilevato}")
+    else:
+        st.warning("❌ Codice non trovato. Prova ad avvicinarti o a migliorare la luce.")
+
+# --- INSERIMENTO DATI ---
+st.divider()
+barcode_finale = st.text_input("Codice a Barre attuale", value=barcode_rilevato)
+
+prodotto_trovato = df_inventario[df_inventario['Barcode'] == str(barcode_finale)]
 
 with st.form("form_spesa", clear_on_submit=True):
     if not prodotto_trovato.empty:
         n_def = prodotto_trovato.iloc[0]['Nome Prodotto']
         p_def = float(prodotto_trovato.iloc[0]['Prezzo'])
-        st.success(f"Trovato: {n_def} (€{p_def})")
     else:
         n_def = ""
         p_def = 0.0
@@ -49,53 +60,32 @@ with st.form("form_spesa", clear_on_submit=True):
     prezzo = st.number_input("Prezzo (€)", value=p_def, format="%.2f")
     qty = st.number_input("Quantità", min_value=1, value=1)
     
-    submit = st.form_submit_button("AGGIUNGI AL CARRELLO")
-    
-    if submit:
+    if st.form_submit_button("AGGIUNGI AL CARRELLO"):
         if nome != "" and prezzo > 0:
             st.session_state.carrello.append({
-                "Nome": nome, 
-                "Prezzo": prezzo, 
-                "Qty": qty, 
-                "Totale": round(prezzo * qty, 2)
+                "Nome": nome, "Prezzo": prezzo, "Qty": qty, "Totale": round(prezzo * qty, 2)
             })
-            st.rerun() # Ricarica l'app per aggiornare subito la tabella
-        else:
-            st.error("Inserisci un nome e un prezzo valido!")
+            st.rerun()
 
 # --- RIEPILOGO ---
 if st.session_state.carrello:
-    st.divider()
     df_c = pd.DataFrame(st.session_state.carrello)
-    
-    # Tabella formattata bene
     st.dataframe(df_c, use_container_width=True, hide_index=True)
     
-    totale_spesa = df_c['Totale'].sum()
-    st.header(f"Totale: € {totale_spesa:.2f}")
+    totale = df_c['Totale'].sum()
+    st.header(f"Totale: € {totale:.2f}")
 
-    # Bottone PDF
-    if st.button("📄 GENERA SCONTRINO PDF"):
+    if st.button("📄 GENERA PDF"):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", 'B', 16)
-        pdf.cell(200, 10, f"SCONTRINO: {punto_vendita.upper()}", ln=True, align='C')
-        pdf.set_font("Arial", size=10)
-        pdf.cell(200, 7, f"Data: {data_acquisto}", ln=True, align='C')
-        pdf.ln(10)
-        
-        # Righe Prodotti nel PDF
+        pdf.cell(200, 10, "SCONTRINO SPESA", ln=True, align='C')
         pdf.set_font("Arial", size=12)
-        for _, row in df_c.iterrows():
-            pdf.cell(100, 10, f"{row['Nome']} (x{row['Qty']})", 1)
-            pdf.cell(50, 10, f"EUR {row['Totale']:.2f}", 1, ln=True)
-        
-        pdf.ln(5)
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(150, 10, f"TOTALE: EUR {totale_spesa:.2f}", ln=True, align='R')
-        
+        for _, r in df_c.iterrows():
+            pdf.cell(200, 10, f"{r['Nome']} x{r['Qty']} - €{r['Totale']:.2f}", ln=True)
+        pdf.cell(200, 10, f"TOTALE: €{totale:.2f}", ln=True, align='R')
         pdf_bytes = pdf.output(dest='S').encode('latin-1')
-        st.download_button("⬇️ SCARICA PDF", data=pdf_bytes, file_name="scontrino.pdf")
+        st.download_button("⬇️ SCARICA PDF", data=pdf_bytes, file_name="spesa.pdf")
 
 if st.button("🗑️ Svuota Carrello"):
     st.session_state.carrello = []
