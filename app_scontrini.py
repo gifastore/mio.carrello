@@ -8,7 +8,7 @@ st.set_page_config(page_title="Vibe Smart Spesa", page_icon="🛒")
 
 # --- CONFIGURAZIONE DATABASE ---
 # Incolla qui l'URL esatto del tuo nuovo foglio
-URL_FOGLIO = "https://docs.google.com/spreadsheets/d/IL_TUO_ID_FOGLIO_QUI/edit"
+URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8NOHVq1NPgZEUnKyt0/edit"
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
