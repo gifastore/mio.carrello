@@ -2,85 +2,139 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from fpdf import FPDF
+from datetime import datetime
 
-# Configurazione base
-st.set_page_config(page_title="Vibe Smart Spesa", page_icon="🛒")
+# Configurazione Pagina
+st.set_page_config(page_title="Vibe Smart Spesa", page_icon="🛒", layout="centered")
 
 # --- CONNESSIONE GOOGLE SHEETS ---
 URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8NOHVq1NPgZEUnKyt0/edit"
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    # Funzione per caricare i dati fresca
-    def get_data():
+    def carica_dati():
+        # Legge il foglio e pulisce i dati
         df = conn.read(spreadsheet=URL_FOGLIO, worksheet="0")
         df['Barcode'] = df['Barcode'].astype(str).str.strip()
         return df
-    
-    df_inventario = get_data()
-except:
-    st.error("Connessione al database fallita. Controlla l'URL del foglio.")
-    df_inventario = pd.DataFrame(columns=['Barcode', 'Nome Prodotto', 'Prezzo'])
+    df_inventario = carica_dati()
+except Exception as e:
+    st.error(f"Errore database: {e}")
+    df_inventario = pd.DataFrame(columns=['Barcode', 'Nome Prodotto', 'Prezzo', 'Punto Vendita'])
 
-# Inizializzazione sessione
+# Inizializzazione Carrello
 if 'carrello' not in st.session_state:
     st.session_state.carrello = []
 
-st.title("🛒 Vibe Smart Spesa")
+# --- SIDEBAR: SETTINGS ---
+st.sidebar.header("⚙️ Impostazioni")
+negozio = st.sidebar.selectbox(
+    "Punto Vendita:",
+    ["Conad", "Coop", "Esselunga", "Carrefour", "Lidl", "Eurospin", "Despar", "Altro"]
+)
 
-# --- INPUT PRINCIPALE ---
-# Qui è dove la tastiera di Antonov scriverà il codice
-barcode_input = st.text_input("📡 Scansiona ora", placeholder="Tocca qui e usa lo scanner della tastiera...")
+if st.sidebar.button("🗑️ Svuota Carrello"):
+    st.session_state.carrello = []
+    st.rerun()
+
+# --- INTERFACCIA PRINCIPALE ---
+st.title("🛒 Vibe Smart Spesa")
+st.info(f"📍 Negozio: **{negozio}**")
+
+# Campo input ottimizzato per la tastiera scanner
+barcode_input = st.text_input("📡 Scansiona ora", placeholder="Usa il tasto scanner della tastiera...", help="Tocca qui e attiva lo scanner di Nikola Antonov")
 
 # Ricerca nel database
 prodotto_trovato = df_inventario[df_inventario['Barcode'] == str(barcode_input).strip()]
 
-with st.form("aggiunta_prodotto", clear_on_submit=True):
+with st.form("aggiunta_form", clear_on_submit=True):
     if not prodotto_trovato.empty and barcode_input:
-        n_def = prodotto_trovato.iloc[0]['Nome Prodotto']
-        p_def = float(prodotto_trovato.iloc[0]['Prezzo'])
-        st.success(f"✅ Prodotto: **{n_def}**")
+        # Se esistono più prezzi, prende l'ultimo inserito
+        item = prodotto_trovato.iloc[-1]
+        n_def = item['Nome Prodotto']
+        p_def = float(item['Prezzo'])
+        st.success(f"✅ Prodotto riconosciuto: **{n_def}**")
         is_new = False
     else:
         n_def = ""
         p_def = 0.0
         is_new = True
         if barcode_input:
-            st.warning("🆕 Prodotto non trovato. Inserisci i dettagli per aggiungerlo.")
+            st.warning("🆕 Prodotto non trovato nel database.")
 
     nome = st.text_input("Nome Prodotto", value=n_def)
     prezzo = st.number_input("Prezzo (€)", value=p_def, format="%.2f", step=0.01)
-    qty = st.number_input("Quantità", min_value=1, value=1)
+    qty = st.number_input("Quantità", min_value=1, value=1, step=1)
     
     col1, col2 = st.columns(2)
     with col1:
-        add_btn = st.form_submit_button("➕ AGGIUNGI")
+        add_btn = st.form_submit_button("➕ AGGIUNGI AL CARRELLO")
     with col2:
-        # Appare solo se il prodotto non è nel database
-        save_btn = st.form_submit_button("💾 SALVA NEL DB") if is_new and barcode_input else False
+        save_btn = st.form_submit_button("💾 SALVA NEL DATABASE") if is_new and barcode_input else False
 
+    # Logica Aggiunta
     if add_btn and nome and prezzo > 0:
         st.session_state.carrello.append({
-            "Nome": nome, "Prezzo": prezzo, "Qty": qty, "Totale": round(prezzo * qty, 2)
+            "Data": datetime.now().strftime("%d/%m/%Y"),
+            "Negozio": negozio,
+            "Nome": nome,
+            "Prezzo": prezzo,
+            "Qty": qty,
+            "Totale": round(prezzo * qty, 2)
         })
+        st.toast(f"Aggiunto: {nome}")
         st.rerun()
 
+    # Logica Salvataggio Database
     if save_btn and barcode_input and nome and prezzo > 0:
-        nuovo_dato = pd.DataFrame([[barcode_input, nome, prezzo]], columns=['Barcode', 'Nome Prodotto', 'Prezzo'])
-        df_aggiornato = pd.concat([df_inventario, nuovo_dato], ignore_index=True)
+        nuovo_prodotto = pd.DataFrame([[barcode_input, nome, prezzo, negozio]], 
+                                      columns=['Barcode', 'Nome Prodotto', 'Prezzo', 'Punto Vendita'])
+        df_aggiornato = pd.concat([df_inventario, nuovo_prodotto], ignore_index=True)
         conn.update(spreadsheet=URL_FOGLIO, data=df_aggiornato)
-        st.success("Database aggiornato! 🚀")
         st.cache_data.clear()
+        st.success(f"Memorizzato nel database! 🎉")
 
-# --- TABELLA CARRELLO ---
+# --- VISUALIZZAZIONE SPESA ---
 if st.session_state.carrello:
     st.divider()
-    df_carrello = pd.DataFrame(st.session_state.carrello)
-    st.dataframe(df_carrello[['Nome', 'Qty', 'Totale']], use_container_width=True, hide_index=True)
+    st.subheader("📝 Lista Spesa Corrente")
+    df_c = pd.DataFrame(st.session_state.carrello)
     
-    totale = df_carrello['Totale'].sum()
-    st.subheader(f"Totale: € {totale:.2f}")
+    # Tabella riassuntiva
+    st.dataframe(df_c[['Nome', 'Qty', 'Totale']], use_container_width=True, hide_index=True)
+    
+    totale_euro = df_c['Totale'].sum()
+    st.metric("TOTALE DA PAGARE", f"€ {totale_euro:.2f}")
 
-    if st.button("🗑️ SVUOTA TUTTO"):
-        st.session_state.carrello = []
-        st.rerun()
+    # Esportazione PDF
+    if st.button("📄 GENERA SCONTRINO PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 18)
+        pdf.cell(200, 10, "VIBE SMART SPESA", ln=True, align='C')
+        pdf.set_font("Arial", size=10)
+        pdf.cell(200, 10, f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='C')
+        pdf.cell(200, 10, f"Negozio: {negozio}", ln=True, align='C')
+        pdf.ln(10)
+        
+        # Intestazione Tabella
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(100, 10, "Prodotto", 1)
+        pdf.cell(30, 10, "Prezzo", 1)
+        pdf.cell(20, 10, "Qty", 1)
+        pdf.cell(40, 10, "Totale", 1, ln=True)
+        
+        # Righe
+        pdf.set_font("Arial", size=12)
+        for _, r in df_c.iterrows():
+            pdf.cell(100, 10, str(r['Nome']), 1)
+            pdf.cell(30, 10, f"{r['Prezzo']:.2f}", 1)
+            pdf.cell(20, 10, str(r['Qty']), 1)
+            pdf.cell(40, 10, f"{r['Totale']:.2f}", 1, ln=True)
+            
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(190, 10, f"TOTALE: Euro {totale_euro:.2f}", ln=True, align='R')
+        
+        pdf_out = pdf.output(dest='S').encode('latin-1')
+        st.download_button("⬇️ Scarica Scontrino", data=pdf_out, file_name=f"spesa_{negozio}.pdf", mime="application/pdf")
