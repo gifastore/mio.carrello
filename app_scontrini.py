@@ -1,84 +1,39 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-from fpdf import FPDF
-from datetime import datetime
+from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(page_title="Vibe Smart Spesa", page_icon="🛒")
 
-# --- CONFIGURAZIONE DATABASE ---
-# Incolla qui l'URL esatto del tuo nuovo foglio
+# --- CREDENZIALI ---
+# Usiamo il formato corretto per la chiave privata
+pk = "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDVRc8s7nIENYVi\nn+zdpX1hk5NE72ye7xHTyC5KyaCjJy2VqIoHC16eKhJrMr3DdwV2QM1CIdLRooJL\nCb9ljwA0ybIZCHqJ/WMhIWQ1VTJbWyDpFO+ZdMJOFofvCVOk+qxDl5WdO8m0twEf\nFTaxWn6zCDZ1Ar0iICMoWqy85IB4EroKXPr28OuYd2739QQ4Wtvuwp0Gq3Wt8Cyg\nSlJoX9hvPm+YF/Zdo7gZ9CKKw+rznID4q1qOf9NgRpHSKMrvwDGBSVN8fo+utDYu\njc0CJ+qTngVa7YPdVxi7B14LrI1nJackJZE64+8r5vyfh1GzDp9KJXMVcbFrcpHI\nTcL7eUtLAgMBAAECggEAJnph1oluqLO/TPvtkE+7P0+Q0m8f+czIOp1zPKsEAGuh\nHc86l+rFN2P/zrdo5UskASHP5o6Tqp7XQxKPJZOXRe7d4wZUlXDR4bhUjArC+xiF\n54ePcvBN3ijSfZ4BKVLQoaFHrQaMbb5WxXTeWUEqesKQkKvd07pYnX8+ixXu17q0\n12zq72wydJHuGev9fGwF9+SWpwS6Bx5EyMnNXnqfz457RvdvS6MWGhbIu9DuhH76\njEYuTwwDVWtzFsViaTjTHvyyZ3E9mDFw2T/7kBp5diaL2pxm1h2Srex07yW2yQl6\nUEjY4kCoq2nmpe6tfGwXxwsfjphZ6gjCheIe/DiqAQKBgQDyQ7eVugsIGhGWGekB\nhyctRjwAXSjj7LVUWf6cZNRhPkGEXQqe4emgb5QpnXTcmufuGvvv/0/r3z991Uwk\nfD/Pz39hFs3An0wXnpe+HpU1s187EOVP+9CZSS5XLqUji3XGtJ7qgZnX3MlxAbl0\nQ5hzmyGhsATT6e53uIi9ol/pOwKBgQDhXUxQ4PGgRdZftlZUQ4d2dFXMj/m2kI1h\nTUEvbQcsJT8yIKp6Z5VVvBwDnAnlWiUt0NokeHJdQPem0bkd/oRFdz+ykUKKRBUh\nctgpj5wy9QeqvY47y0JpBnpk1jdvxjQiY63xp8MZePnR8Sy1W4I0Rq51CiWqiAo9\nFCwlmbaFMQKBgQDaOqu2AReM3ca3unFNAg0FWH4WKdT6s7CH4mVbReyWCDmGXTWC\n96e28Ku7bO3nBtcjgkUt5IN+yuRrmmbzesUUkiqBL8R53kTyBddU2EG6VPDUyRx3\nlzNJ0UUgHZF+WlLmgq+gOMx3SZhf5pjDJVy/zp9WAbPnnJNGXwE2KX1SHwKBgEt/\nWOijYu7hVn6789HIyaG6OWANP4eUh3h4TAUaTlPQqoodfV8CQnn1SaE/7eTCvT/K\n/rlHDHEHKa/eBFjzAdbPqywkE5mEU1vgQGAz9wzvH0FovTR01GuguvH6/ZlZWe/H\nWudg3zAyYeaeF+8tl8Hxh9I3swSdDGkHz/5Mr2ORAoGBAJS/uHLFzIUkclsx6QCZ\nMya/YbgqtkDZoJJVNV1nquiILubjDBh2CKBeTkpDJHjn1Mw2R8PuIlxS1kuUb2Dx\niynfbItQcJSdSInLefWif9D7LwLqXjH4JMmOf0HJQaqhzyZQTGSY4vkLu3AxDIh+\npgmYaCyTcGdaV4Bz8nFnWGdq\n-----END PRIVATE KEY-----\n"
+
+google_secrets = {
+    "type": "service_account",
+    "project_id": "app-spesa-494412",
+    "private_key_id": "6dedc4d2d9b1e8c27dd280eb5d12fc6a7122e5e7",
+    "private_key": pk.replace("\\n", "\n"), # CORREZIONE FONDAMENTALE
+    "client_email": "spesa-bot@app-spesa-494412.iam.gserviceaccount.com",
+    "client_id": "101057625591465586788",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/spesa-bot%40app-spesa-494412.iam.gserviceaccount.com"
+}
+
+for key, value in google_secrets.items():
+    st.secrets[f"connections.gsheets.{key}"] = value
+
+# --- CONNESSIONE ---
 URL_FOGLIO = "https://docs.google.com/spreadsheets/d/1BTa0dIFYpVGGRR_DXn-qnRpcR8NOHVq1NPgZEUnKyt0/edit"
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    def carica_dati():
-        # Leggiamo il foglio per NOME (es. "Foglio1") per evitare errori di indice
-        df = conn.read(spreadsheet=URL_FOGLIO, worksheet="Foglio1") 
-        df.columns = df.columns.str.strip() # Pulisce spazi nei nomi colonne
-        if 'Codice a Barre' in df.columns:
-            df['Codice a Barre'] = df['Codice a Barre'].astype(str).str.strip()
-        return df
-    df_inventario = carica_dati()
+    df_inventario = conn.read(spreadsheet=URL_FOGLIO, worksheet="0")
+    st.success("✅ Database collegato!")
 except Exception as e:
-    st.error(f"⚠️ Errore di connessione: {e}")
+    st.error(f"❌ Errore: {e}")
     df_inventario = pd.DataFrame(columns=['Codice a Barre', 'PUNTO VENDITA', 'Nome Prodotto', 'Prezzo standard'])
 
-if 'carrello' not in st.session_state:
-    st.session_state.carrello = []
-
-# --- INTERFACCIA ---
-st.sidebar.header("⚙️ Impostazioni")
-lista_negozi = ["Scegli il negozio...", "Conad", "Coop", "Esselunga", "Lidl", "Eurospin", "Carrefour", "Altro"]
-negozio_sel = st.sidebar.selectbox("Punto Vendita attuale:", options=lista_negozi)
-
 st.title("🛒 Vibe Smart Spesa")
-
-if negozio_sel == "Scegli il negozio...":
-    st.info("👈 Seleziona un negozio nella barra laterale per iniziare.")
-    st.stop()
-
-# --- SCANSIONE E LOGICA ---
-barcode_input = st.text_input("📡 Scansiona prodotto", key="barcode_scanner")
-
-prodotto_trovato = df_inventario[df_inventario['Codice a Barre'] == str(barcode_input).strip()]
-
-with st.form("aggiunta_form", clear_on_submit=True):
-    if not prodotto_trovato.empty and barcode_input:
-        item = prodotto_trovato.iloc[-1]
-        n_def = item['Nome Prodotto']
-        p_def = float(item['Prezzo standard'])
-        st.success(f"✅ Prodotto trovato: {n_def}")
-        is_new = False
-    else:
-        n_def = ""
-        p_def = 0.0
-        is_new = True
-
-    nome = st.text_input("Nome Prodotto", value=n_def)
-    prezzo = st.number_input("Prezzo (€)", value=p_def, format="%.2f")
-    qty = st.number_input("Quantità", min_value=1, value=1)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.form_submit_button("➕ AGGIUNGI"):
-            st.session_state.carrello.append({
-                "Negozio": negozio_sel, "Nome": nome, "Prezzo": prezzo, "Qty": qty, "Totale": round(prezzo * qty, 2)
-            })
-            st.rerun()
-    with col2:
-        if is_new and barcode_input:
-            if st.form_submit_button("💾 MEMORIZZA"):
-                nuovo = pd.DataFrame([[barcode_input, negozio_sel, nome, prezzo]], 
-                                     columns=['Codice a Barre', 'PUNTO VENDITA', 'Nome Prodotto', 'Prezzo standard'])
-                df_aggiornato = pd.concat([df_inventario, nuovo], ignore_index=True)
-                conn.update(spreadsheet=URL_FOGLIO, data=df_aggiornato)
-                st.cache_data.clear()
-                st.success("Salvato!")
-
-# --- CARRELLO ---
-if st.session_state.carrello:
-    st.divider()
-    df_c = pd.DataFrame(st.session_state.carrello)
-    st.table(df_c[['Nome', 'Qty', 'Totale']])
-    st.subheader(f"Totale: € {df_c['Totale'].sum():.2f}")
+# ... resto del codice ...
